@@ -1,7 +1,7 @@
 """
 Course    : CSE 351
 Assignment: 02
-Student   : <your name here>
+Student   : <Lidya-Langana>
 
 Instructions:
     - review instructions in the course
@@ -30,29 +30,92 @@ def main():
     log.start_timer()
 
     bank = Bank()
+    # Start an ATM_Reader thread for each data file
+    threads = []
+    for filename in data_files:
+        reader = ATM_Reader(filename, bank)
+        reader.start()
+        threads.append(reader)
+
+    # Wait for all threads to finish
+    for t in threads:
+        t.join()
 
     # TODO - Add a ATM_Reader for each data file
 
     test_balances(bank)
 
     log.stop_timer('Total time')
+    
 
 
 # ===========================================================================
-class ATM_Reader():
-    # TODO - implement this class here
+class ATM_Reader(threading.Thread):
+    def __init__(self, filename, bank):
+        super().__init__()
+        self.filename =filename
+        self.bank = bank
+        
+    def run(self):
+        with open(self.filename, "r") as f:
+            for line in f:
+                line =line.strip()
+                if not line or line.startswith("#"):
+                    continue
+
+                parts = line.split(",")
+                account_number = int(parts[0])
+                trans_type = parts[1]
+                amount = Money(parts[2])
+
+                if trans_type == "d":
+                    self.bank.deposit(account_number,amount)
+                elif trans_type =="w":
+                    self.bank.withdraw(account_number,amount)
     ...
 
 
 # ===========================================================================
 class Account():
-    # TODO - implement this class here
+    def __init__(self, number):
+        self.number =number
+        self.balance = Money("0.00")
+
+    def deposit(self, money):
+        self.balance.add(money)
+
+    def withdraw(self, money):
+        self.balance.sub(money)
+
+    def get_balance(self):
+        return self.balance
+        
     ...
 
 
 # ===========================================================================
 class Bank():
-    # TODO - implement this class here
+    def __init__(self):
+        self.accounts = {}          # dict: {account_number: Account}
+        self.lock = threading.Lock()
+
+    def _get_account(self, number):
+        if number not in self.accounts:
+            self.accounts[number] = Account(number)
+        return self.accounts[number] 
+    
+    def deposit(self, number, money):
+        with self.lock:
+            account = self._get_account(number)
+            account.deposit(money) 
+
+    def withdraw(self, number, money):
+        with self.lock:
+            account = self._get_account(number)
+            account.withdraw(money)  
+    def get_balance(self, number):
+        with self.lock:
+            return self._get_account(number).get_balance()        
     ...
 
 
